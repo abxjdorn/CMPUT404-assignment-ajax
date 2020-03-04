@@ -34,6 +34,10 @@ var H = canvas.height = window.innerHeight-50;
 // Try to avoid clients overwriting eachother's entities
 var uniqueId = Math.floor(Math.random()*1000);
 
+// Give this client a pseudo-unique colour
+var colours = ['#f00', '#ff0', '#0f0', '#0ff', '#00f', '#f0f'];
+var myColour = colours[uniqueId % colours.length];
+
 function sendJSONXMLHTTPRequest(method, url, objects, callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function () {
@@ -68,17 +72,14 @@ function sendJSONXMLHTTPRequest(method, url, objects, callback) {
 
 world = {};
 
-//XXX: TODO Make this prettier!
 function drawCircle(context,entity) {
     with(context) {
         beginPath();              
         lineWidth = 3;
-        var x = entity["x"];
-        var y = entity["y"];
-        //moveTo(x,y);
-        fillStyle = entity["colour"];
-        strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
+        var { x, y, fromX, fromY, colour } = entity;
+        strokeStyle = entity["colour"];
+        if (fromX !== null && fromY !== null) moveTo(fromX, fromY);
+        lineTo(x, y);
         stroke();                                
     }
 }
@@ -258,19 +259,41 @@ mouse = (function() {
     return self;
 })();
 
+var lastX = null;
+var lastY = null;
+
 // Add the application specific mouse listeners!
-//XXX: TODO Make these prettier!
 mouse.mousedowners.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
+    addEntityWithoutName({
+        x,
+        y,
+        fromX: null,
+        fromY: null,
+        colour: myColour,
+    });
+    [lastX, lastY] = [x, y];
 });
 
 mouse.mouseuppers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'red'});
+    addEntityWithoutName({
+        x,
+        y,
+        fromX: lastX,
+        fromY: lastY,
+        colour: myColour,
+    });
+    [lastX, lastY] = [null, null];
 });
 
 mouse.mousedraggers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'green',
-                          'radius':10});
+    addEntityWithoutName({
+        x,
+        y,
+        fromX: lastX,
+        fromY: lastY,
+        colour: myColour
+    });
+    [lastX, lastY] = [x, y];
 });
 
 
