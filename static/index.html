@@ -31,15 +31,20 @@ var context = canvas.getContext("2d");
 var W = canvas.width  = window.innerWidth-6;
 var H = canvas.height = window.innerHeight-50;
 
+// Try to avoid clients overwriting eachother's entities
+var uniqueId = Math.floor(Math.random()*1000);
 
-function sendJSONXMLHTTPRequest(url, objects, callback) {
+function sendJSONXMLHTTPRequest(method, url, objects, callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function () {
         if (xhr.readyState==4) {
             try {
                 if (xhr.status==200) {
-                    //XXX: parse some JSON from the request!
-                    //XXX: Pass the data to the callback!
+                    // parse some JSON from the request!
+                    data = JSON.parse(xhr.response);
+
+                    // Pass the data to the callback!
+                    if (callback !== undefined) callback(data);
                 }
             } 
             catch(e) {
@@ -47,9 +52,17 @@ function sendJSONXMLHTTPRequest(url, objects, callback) {
             }
         }
     };
-    //XXX: POST to a URL
-    //XXX: set the mimetype and the accept headers!
+
+    /* https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest */
+
+    // POST (or other method) to a URL
+    xhr.open(method, url);
+    // set the mimetype and the accept headers!
+    xhr.setRequestHeader('Accept', 'application/json');
     // Remember to use application/json !
+    xhr.setRequestHeader('Content-Type', 'application/json');
+
+    xhr.send(JSON.stringify(objects));
 }
 
 
@@ -137,14 +150,15 @@ function getPosition(e) {
 function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
-    //XXX: Send a XHTML Request that updates the entity you just  modified!
 
+    // Send a XHTML Request that updates the entity you just  modified!
+    sendJSONXMLHTTPRequest('POST', `/entity/${entity}`, data);
 }
 
 var counter = 0;
 function addEntityWithoutName(data) {
     //var name = "X"+Math.floor((Math.random()*100)+1);
-    var name = "X"+(counter++)%100;
+    var name = uniqueId+"X"+(counter++)%100;
     addEntity(name,data);
 }
 
@@ -261,7 +275,13 @@ mouse.mousedraggers.push(function(x,y,clicked,e) {
 
 
 function update() {
-    //XXX: TODO Get the world from the webservice using a XMLHTTPRequest
+    // Get the world from the webservice using a XMLHTTPRequest
+    sendJSONXMLHTTPRequest('GET', '/world', {}, (data) => {
+        for (const entity of Object.keys(data)) {
+            if (world[entity] != data[entity]) drawNextFrame();
+            world[entity] = data[entity];
+        }
+    });
     drawFrame();
 }
 
